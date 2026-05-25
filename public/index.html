@@ -117,7 +117,7 @@
     /* Split Screen Layout */
     .app-container {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 4fr 6fr;
       grid-template-rows: 100%;
       flex: 1;
       height: calc(100vh - 65px);
@@ -128,7 +128,7 @@
     }
 
     .split-panel {
-      padding: 2rem;
+      padding: 1.25rem 1rem;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
@@ -339,38 +339,31 @@
        Tablet Simulator Component (Vista A - Derecha)
        ========================================================================== */
     .tablet-simulator {
-      background: var(--tablet-bezel);
-      border-radius: 36px;
-      padding: 1.5rem;
+      background: linear-gradient(135deg, #252830 0%, #13151a 100%);
+      border-radius: 6px; /* Esquinas ultra-afiladas de diseño moderno/arquitectónico */
+      padding: 2.2rem;
       width: 100%;
-      max-width: 660px;
+      max-width: 880px;
       aspect-ratio: 4 / 3;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(59, 130, 246, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 
+        0 35px 70px -15px rgba(0, 0, 0, 0.9), /* Sombra súper profunda */
+        inset 0 0 15px rgba(255, 255, 255, 0.03); /* Brillo sutil de metal cepillado */
+      border: 8px solid #3a3e4b; /* Marco exterior de aluminio/titanio oscuro mecanizado */
       position: relative;
       display: flex;
       flex-direction: column;
     }
 
-    /* Bezel camera and details */
-    .tablet-simulator::before {
-      content: '';
-      position: absolute;
-      top: 0.6rem;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #0f172a;
-    }
 
     .tablet-screen {
       background: var(--tablet-screen);
       flex: 1;
-      border-radius: 20px;
+      border-radius: 1px; /* Acople perfecto del cristal */
       overflow-y: auto;
-      border: 1px solid rgba(0, 0, 0, 0.8);
+      border: 1px solid #334155; /* Bisel interior minimalista en acero/pizarra */
+      box-shadow: 
+        inset 0 0 30px rgba(0, 0, 0, 0.95), /* Cristal flotante */
+        0 0 0 12px #0d0e12; /* Paspartú negro obsidiana mate de máximo contraste */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -594,9 +587,7 @@
         <h2>Panel de Administración y Depuración</h2>
         <button class="btn btn-outline" onclick="clearLogs()">Limpiar Consola</button>
       </div>
-      <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
-        A continuación se detalla la comunicación en tiempo real. Observa cómo el dispositivo IoT habla con el servidor usando <strong>CoAP (UDP)</strong> a través del Proxy Inverso, firmando criptográficamente sus peticiones.
-      </p>
+
 
       <!-- Terminal logs window -->
       <div class="terminal-container">
@@ -736,6 +727,7 @@
 
       ws.onclose = () => {
         statusWS.classList.remove('active');
+        statusProxy.classList.remove('active'); // Apagar indicador de proxy
         addLog('SISTEMA', 'error', 'Conexión WebSocket cerrada. Intentando reconectar...');
         setTimeout(connectWS, 2000);
       };
@@ -792,6 +784,9 @@
     }
 
     function handleDeviceStateChange(state, details) {
+      // Si recibimos cualquier estado del dispositivo, el flujo/proxy CoAP está activo
+      statusProxy.classList.add('active');
+
       // Hide all states
       stateOff.classList.add('hidden');
       stateRegistering.classList.add('hidden');
