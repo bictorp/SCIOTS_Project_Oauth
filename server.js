@@ -5,6 +5,55 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
 import { WebSocketServer, WebSocket } from 'ws';
+import os from 'os';
+
+function getLocalIpAddress() {
+  const interfaces = os.networkInterfaces();
+  let fallbackIp = 'localhost';
+  
+  const keys = Object.keys(interfaces).sort((a, b) => {
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
+    
+    const priority = (name) => {
+      if (name.includes('ethernet') && !name.includes('vethernet')) return 3;
+      if (name.includes('wi-fi') || name.includes('wlan')) return 3;
+      if (name.startsWith('eth') || name.startsWith('wlan') || name.startsWith('en')) return 2;
+      return 1;
+    };
+    
+    return priority(bLower) - priority(aLower);
+  });
+
+  for (const name of keys) {
+    const nameLower = name.toLowerCase();
+    
+    if (
+      nameLower.includes('nord') ||
+      nameLower.includes('vpn') ||
+      nameLower.includes('wsl') ||
+      nameLower.includes('virtual') ||
+      nameLower.includes('veth') ||
+      nameLower.includes('docker') ||
+      nameLower.includes('host-only') ||
+      nameLower.includes('loopback')
+    ) {
+      continue;
+    }
+
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        if (iface.address.startsWith('192.168.')) {
+          return iface.address;
+        }
+        if (fallbackIp === 'localhost') {
+          fallbackIp = iface.address;
+        }
+      }
+    }
+  }
+  return fallbackIp;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,7 +194,8 @@ app.post('/auth/device_authorize', (req, res) => {
     const device_code = 'dev_' + crypto.randomBytes(16).toString('hex');
     // Código de usuario legible (Ej: ABCD-1234)
     const user_code = crypto.randomBytes(4).toString('hex').toUpperCase().match(/.{1,4}/g).join('-');
-    const verification_uri = `http://localhost:${PORT}/verify.html`;
+    const localIp = getLocalIpAddress();
+    const verification_uri = `http://${localIp}:${PORT}/verify.html`;
     const expires_in = 300; // 5 minutos
 
     const authData = {
@@ -389,9 +439,10 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
+  const localIp = getLocalIpAddress();
   console.log(`======================================================`);
   console.log(`OAuth 2.0 Device Flow Server running on http://localhost:${PORT}`);
   console.log(`- Panel Principal (Vista A): http://localhost:${PORT}/index.html`);
-  console.log(`- Portal Móvil (Vista B): http://localhost:${PORT}/verify.html`);
+  console.log(`- Portal Móvil (Vista B) [IP Local]: http://${localIp}:${PORT}/verify.html`);
   console.log(`======================================================`);
 });
