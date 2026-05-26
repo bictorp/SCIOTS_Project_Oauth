@@ -1,19 +1,44 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { WebSocket } from 'ws';
 import http from 'http';
+import coap from 'coap';
+import coapPacket from 'coap-packet';
+
+// Incrementar el tamaño máximo de paquete permitido por CoAP para soportar el certificado RSA de atestación
+const originalGenerate = coapPacket.generate;
+coapPacket.generate = function (packet, maxLength) {
+  const limit = (maxLength === 1280 || maxLength === undefined) ? 4096 : maxLength;
+  return originalGenerate(packet, limit);
+};
+coap.parameters.maxMessageSize = 4096;
+coap.parameters.maxPayloadSize = 4096;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Port configurations
 const DASHBOARD_WS_URL = 'ws://localhost:3000?role=device';
-const AUTH_SERVER_HOST = 'localhost';
-const AUTH_SERVER_PORT = 3001;
-const RESOURCE_SERVER_HOST = 'localhost';
-const RESOURCE_SERVER_PORT = 3002;
+
+let COAP_PROXY_HOST = '127.0.0.1';
+try {
+  // En Windows, obtenemos la IP virtual de red de WSL.
+  // Esto es necesario porque WSL2 no reenvía paquetes UDP de 'localhost' desde Windows hacia el contenedor Linux.
+  const wslIp = execSync('wsl hostname -I').toString().trim().split(' ')[0];
+  if (wslIp) {
+    COAP_PROXY_HOST = wslIp;
+  }
+} catch (e) {
+  console.log('⚠️ No se pudo detectar la IP de WSL, usando 127.0.0.1');
+}
+
+const AUTH_SERVER_HOST = COAP_PROXY_HOST;
+const AUTH_SERVER_PORT = 5683; // CoAP Auth Proxy UDP Port
+const RESOURCE_SERVER_HOST = COAP_PROXY_HOST;
+const RESOURCE_SERVER_PORT = 5685; // CoAP Resource Proxy UDP Port
 
 let ws = null;
 let devicePrivateKey = null;
@@ -94,31 +119,32 @@ function updateUIState(state, details) {
 /**
  * Generic HTTP POST requester
  */
-function httpPost(host, port, pathname, payload) {
+/**
+ * Generic CoAP POST requester
+ */
+function coapPost(host, port, pathname, payload) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(payload);
 
-    const options = {
-      hostname: host,
-      port:     port,
-      path:     pathname,
-      method:   'POST',
-      headers: {
-        'Content-Type':   'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        'X-CoAP-Proxy':  'true',
-        'X-CoAP-Device': deviceId
+    const req = coap.request({
+      host: host,
+      port: port,
+      pathname: pathname,
+      method: 'POST',
+      options: {
+        'Content-Format': 'application/json'
       }
-    };
+    });
 
-    const req = http.request(options, (res) => {
+    req.on('response', (res) => {
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
+      res.on('data', (chunk) => { data += chunk.toString(); });
       res.on('end', () => {
+        const httpStatus = httpStatusFromCoapCode(res.code);
         try {
-          resolve({ status: res.statusCode, data: JSON.parse(data) });
+          resolve({ status: httpStatus, data: JSON.parse(data) });
         } catch {
-          resolve({ status: res.statusCode, data });
+          resolve({ status: httpStatus, data });
         }
       });
     });
@@ -127,6 +153,29 @@ function httpPost(host, port, pathname, payload) {
     req.write(body);
     req.end();
   });
+}
+
+function httpStatusFromCoapCode(coapCode) {
+  if (!coapCode) return 200;
+  if (typeof coapCode === 'number') return coapCode;
+  
+  const codeStr = coapCode.toString();
+  if (codeStr === '2.05') return 200;
+  if (codeStr === '2.01') return 201;
+  if (codeStr === '2.04') return 204;
+  if (codeStr === '4.00') return 400;
+  if (codeStr === '4.01') return 401;
+  if (codeStr === '4.03') return 403;
+  if (codeStr === '4.04') return 404;
+  if (codeStr === '4.05') return 405;
+  if (codeStr === '5.00') return 500;
+  if (codeStr === '5.02') return 502;
+  if (codeStr === '5.04') return 504;
+  
+  if (codeStr.startsWith('2.')) return 200;
+  if (codeStr.startsWith('4.')) return 400;
+  if (codeStr.startsWith('5.')) return 500;
+  return 200;
 }
 
 // OAuth 2.0 Device Flow execution
@@ -142,12 +191,12 @@ async function startDeviceRegistration() {
     const signature = crypto.sign('sha256', Buffer.from(payloadToSign), devicePrivateKey);
 
     // ── PASO 2: Enviar solicitud de autorización con el certificado de atestación ──
-    sendUILog('req', `📤 Enviando CoAP POST → HTTP al AS (Puerto 3001) /auth/device_authorize...`, {
+    sendUILog('req', `📤 Enviando CoAP POST al Proxy de AS (Puerto 5683) /auth/device_authorize...`, {
       device_id: deviceId,
       timestamp
     });
 
-    const authResponse = await httpPost(AUTH_SERVER_HOST, AUTH_SERVER_PORT, '/auth/device_authorize', {
+    const authResponse = await coapPost(AUTH_SERVER_HOST, AUTH_SERVER_PORT, '/auth/device_authorize', {
       client_id:               deviceId,
       timestamp,
       signature:               signature.toString('hex'),
@@ -181,10 +230,10 @@ function startTokenPolling(device_code, interval) {
 
   const pollTimer = setInterval(async () => {
     attempt++;
-    sendUILog('req', `🔄 Polling de tokens — Intento ${attempt} vía POST /auth/token en AS...`);
+    sendUILog('req', `🔄 Polling de tokens — Intento ${attempt} vía CoAP POST /auth/token en AS (Puerto 5683)...`);
 
     try {
-      const response = await httpPost(AUTH_SERVER_HOST, AUTH_SERVER_PORT, '/auth/token', {
+      const response = await coapPost(AUTH_SERVER_HOST, AUTH_SERVER_PORT, '/auth/token', {
         device_code,
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
       });
@@ -216,10 +265,10 @@ function startTokenPolling(device_code, interval) {
 }
 
 async function downloadPhotos(access_token) {
-  sendUILog('req', '📸 Solicitando catálogo de fotos al Servidor de Recursos (Puerto 3002) con token Bearer...');
+  sendUILog('req', '📸 Solicitando catálogo de fotos al Proxy del RS (Puerto 5685) con token Bearer...');
 
   try {
-    const response = await httpPost(RESOURCE_SERVER_HOST, RESOURCE_SERVER_PORT, '/api/photos', { access_token });
+    const response = await coapPost(RESOURCE_SERVER_HOST, RESOURCE_SERVER_PORT, '/api/photos', { access_token });
 
     if (response.status !== 200) {
       throw new Error(`Error del RS: ${JSON.stringify(response.data)}`);

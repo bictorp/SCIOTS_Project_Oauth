@@ -19,7 +19,7 @@ console.log('🏭 Starting Factory Provisioning Process for SCIOTS Device...');
 
 // 1. Generate/Load Manufacturer CA Keys
 console.log('🔑 Generating Manufacturer CA Keys...');
-const manufacturerKeyPair = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+const manufacturerKeyPair = crypto.generateKeyPairSync('rsa', { modulusLength: 1024 });
 const manufacturerPrivKey = manufacturerKeyPair.privateKey;
 const manufacturerPubKey = manufacturerKeyPair.publicKey;
 
@@ -33,7 +33,7 @@ console.log('✅ Exported Manufacturer Public Key to auth_server/manufacturer_pu
 // 2. Generate Device Keypair (representing the unique hardware key of the smart photo frame)
 const DEVICE_ID = 'smart-grid-frame-001';
 console.log(`🔒 Generating Hardware Keypair for Device: ${DEVICE_ID}...`);
-const deviceKeyPair = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+const deviceKeyPair = crypto.generateKeyPairSync('rsa', { modulusLength: 1024 });
 const devicePrivKey = deviceKeyPair.privateKey;
 const devicePubKey = deviceKeyPair.publicKey;
 

@@ -1,0 +1,6 @@
+# Ignorar credenciales de dispositivos y llaves generadas localmente
+auth_server/manufacturer_pubkey.pem
+dashboard_device/device_credentials.json
+
+# Node modules
+node_modules/
