@@ -5,8 +5,12 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "device": "node device.js"
+    "provision": "node scripts/provision.js",
+    "start": "npx -y concurrently -k -n \"auth,resource,dashboard,device\" -c \"magenta,cyan,blue,yellow\" \"npm run auth\" \"npm run resource\" \"npm run dashboard\" \"npm run device\"",
+    "dashboard": "powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\" & node dashboard_device/dashboard.js",
+    "device": "node dashboard_device/device.js",
+    "auth": "powershell -Command \"Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\" & node auth_server/auth_server.js",
+    "resource": "powershell -Command \"Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\" & node resource_server/resource_server.js"
   },
   "dependencies": {
     "express": "^4.19.2",

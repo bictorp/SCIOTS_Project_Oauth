@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCIOTS Smart Grid - OAuth 2.0 Device Flow</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #0a0d16;
+      --bg-card: rgba(22, 28, 45, 0.6);
+      --border-card: rgba(255, 255, 255, 0.06);
+      
+      --color-primary: hsl(217, 91%, 60%);
+      --color-primary-glow: rgba(59, 130, 246, 0.25);
+      
+      --color-success: #10b981;
+      --color-success-glow: rgba(16, 185, 129, 0.2);
+      
+      --color-warning: #f59e0b;
+      
+      --color-error: #ef4444;
+      
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      
+      --tablet-bezel: #1e293b;
+      --tablet-screen: #020617;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(30, 58, 138, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(88, 28, 135, 0.1) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header styling */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 2rem;
+      background: rgba(11, 15, 25, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-card);
+      z-index: 10;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .header-logo h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-logo p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .status-panel {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-error);
+      box-shadow: 0 0 6px var(--color-error);
+      transition: all 0.3s ease;
+    }
+
+    .status-indicator.active .status-dot {
+      background: var(--color-success);
+      box-shadow: 0 0 8px var(--color-success);
+    }
+
+    /* Split Screen Layout */
+    .app-container {
+      display: grid;
+      grid-template-columns: 4fr 6fr;
+      grid-template-rows: 100%;
+      flex: 1;
+      height: calc(100vh - 65px);
+      max-height: calc(100vh - 65px);
+      min-height: calc(100vh - 65px);
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .split-panel {
+      padding: 1.25rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow: hidden;
+      height: 100%;
+      max-height: 100%;
+      box-sizing: border-box;
+    }
+
+    .panel-left {
+      border-right: 1px solid var(--border-card);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .panel-right {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.005);
+    }
+
+    /* Panel Headers */
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    /* Terminal Console */
+    .terminal-container {
+      flex: 1;
+      height: 0; /* HACK: Forza a ignorar la altura del contenido */
+      background: #05070e;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+      min-height: 0;
+    }
+
+    .terminal-header {
+      background: rgba(255, 255, 255, 0.01);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding: 0.5rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    .term-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .term-dot.red { background: #ef4444; }
+    .term-dot.yellow { background: #f59e0b; }
+    .term-dot.green { background: #10b981; }
+
+    .terminal-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .terminal-body {
+      flex: 1;
+      height: 0; /* HACK: Forza a activar el scroll interno y no crecer */
+      padding: 1rem;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.75rem;
+      scroll-behavior: smooth;
+      min-height: 0;
+    }
+
+    .terminal-body::-webkit-scrollbar {
+      width: 8px;
+    }
+    .terminal-body::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .terminal-body::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      border: 2px solid #05070e;
+    }
+    .terminal-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .log-row {
+      line-height: 1.4;
+      word-break: break-all;
+      margin-bottom: 0.4rem;
+    }
+
+    .log-source {
+      font-weight: bold;
+    }
+
+    .log-source-device { color: #60a5fa; }
+    .log-source-server { color: #f472b6; }
+    .log-source-system { color: #94a3b8; }
+
+    .log-type {
+      text-transform: uppercase;
+      font-weight: 500;
+      padding: 0.05rem 0.25rem;
+      border-radius: 3px;
+      font-size: 0.65rem;
+    }
+
+    .log-type-start { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+    .log-type-req { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .log-type-res { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .log-type-crypt { background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.2); }
+    .log-type-error { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+    .log-type-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .log-type-system { background: rgba(255, 255, 255, 0.03); color: #94a3b8; }
+
+    .log-text {
+      color: #e2e8f0;
+    }
+
+    .log-details {
+      color: var(--text-muted);
+      padding-left: 1.5rem;
+      font-size: 0.7rem;
+      margin-top: 0.1rem;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      outline: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #ffffff;
+      box-shadow: 0 4px 12px var(--color-primary-glow);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #2563eb;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-outline:hover {
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .btn-power {
+      background: #ef4444;
+      color: white;
+      padding: 0.8rem 1.8rem;
+      font-size: 0.95rem;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-power:hover {
+      background: #dc2626;
+      box-shadow: 0 4px 20px rgba(220, 38, 38, 0.5);
+    }
+
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* Tablet Simulator */
+    .tablet-simulator {
+      background: linear-gradient(135deg, #252830 0%, #13151a 100%);
+      border-radius: 6px;
+      padding: 2.2rem;
+      width: 100%;
+      max-width: 880px;
+      aspect-ratio: 4 / 3;
+      box-shadow: 
+        0 35px 70px -15px rgba(0, 0, 0, 0.9),
+        inset 0 0 15px rgba(255, 255, 255, 0.03);
+      border: 8px solid #3a3e4b;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tablet-screen {
+      background: var(--tablet-screen);
+      flex: 1;
+      border-radius: 1px;
+      overflow-y: auto;
+      border: 1px solid #334155;
+      box-shadow: 
+        inset 0 0 30px rgba(0, 0, 0, 0.95),
+        0 0 0 12px #0d0e12;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 1.25rem 1rem;
+      position: relative;
+      color: #ffffff;
+      text-align: center;
+    }
+
+    .tablet-screen::-webkit-scrollbar {
+      width: 6px;
+    }
+    .tablet-screen::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    .tablet-screen::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    .screen-state {
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    #stateOff h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.4rem;
+      color: var(--text-muted);
+    }
+
+    #stateOff p {
+      font-size: 0.8rem;
+      color: #64748b;
+      max-width: 280px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.05);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+
+    #stateRegistering h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.2rem;
+    }
+
+    #stateRegistering p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    #statePendingUser h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.2rem;
+      color: #ffffff;
+    }
+
+    .code-display {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--color-warning);
+      background: rgba(245, 158, 11, 0.08);
+      border: 2px dashed rgba(245, 158, 11, 0.3);
+      padding: 0.4rem 1.5rem;
+      border-radius: 8px;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.05);
+    }
+
+    .qr-container {
+      background: white;
+      padding: 0.4rem;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .qr-container img {
+      width: 110px;
+      height: 110px;
+    }
+
+    .instructions {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      max-width: 320px;
+      line-height: 1.4;
+    }
+
+    .instructions a {
+      color: var(--color-primary);
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .timeout-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 4px;
+      background: var(--color-warning);
+      width: 100%;
+      transition: width 1s linear;
+    }
+
+    #stateAuthorized {
+      padding: 0;
+      gap: 0;
+      position: relative;
+    }
+
+    .carousel-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 18px;
+      transition: opacity 0.8s ease-in-out;
+      background-color: #000;
+    }
+
+    .carousel-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+      padding: 1.5rem;
+      text-align: left;
+      border-radius: 0 0 18px 18px;
+    }
+
+    .carousel-overlay h4 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      color: white;
+      margin-bottom: 0.25rem;
+    }
+
+    .carousel-overlay p {
+      font-size: 0.7rem;
+      color: var(--color-success);
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-logo">
+      <div style="font-size: 1.5rem;">🔒</div>
+      <div>
+        <h1>SCIOTS Smart City</h1>
+        <p>Atestación de Hardware & OAuth 2.0 Device Flow (CoAP / UDP)</p>
+      </div>
+    </div>
+
+    <!-- Active indicators -->
+    <div class="status-panel">
+      <div class="status-indicator" id="statusServer">
+        <span class="status-dot"></span> Dashboard Express (Puerto 3000)
+      </div>
+      <div class="status-indicator" id="statusProxy">
+        <span class="status-dot"></span> Dispositivo Conectado
+      </div>
+      <div class="status-indicator" id="statusWS">
+        <span class="status-dot"></span> Conexión WebSocket
+      </div>
+    </div>
+  </header>
+
+  <!-- Container Grid -->
+  <div class="app-container">
+    
+    <!-- Left panel: Logs -->
+    <section class="split-panel panel-left">
+      <div class="panel-header">
+        <h2>Panel de Administración y Depuración</h2>
+        <button class="btn btn-outline" onclick="clearLogs()">Limpiar Consola</button>
+      </div>
+
+      <!-- Terminal logs window -->
+      <div class="terminal-container">
+        <div class="terminal-header">
+          <div class="terminal-dots">
+            <span class="term-dot red"></span>
+            <span class="term-dot yellow"></span>
+            <span class="term-dot green"></span>
+          </div>
+          <span class="terminal-title">Transacciones Criptográficas / OAuth 2.0</span>
+          <span></span>
+        </div>
+        <div class="terminal-body" id="logsContainer">
+          <div class="log-row">
+            <span class="log-source log-source-system">[SISTEMA]</span>
+            <span class="log-type log-type-system">SYSTEM</span>
+            <span class="log-text">Cargando consola de depuración interactiva... Listo.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right panel: Tablet simulation -->
+    <section class="split-panel panel-right">
+      <div class="tablet-simulator">
+        <div class="tablet-screen">
+          
+          <!-- State: Off -->
+          <div class="screen-state" id="stateOff">
+            <div style="font-size: 3rem;">🖼️</div>
+            <h3>Portarretratos Digital IoT</h3>
+            <p>Este dispositivo simula una tablet inteligente de la Smart City sin navegador web que necesita autorización.</p>
+            <button class="btn btn-power" id="btnPower" onclick="turnOnDevice()">Encender y Registrar</button>
+          </div>
+
+          <!-- State: Registering / Attestation -->
+          <div class="screen-state hidden" id="stateRegistering">
+            <div class="spinner"></div>
+            <h3 id="registeringTitle">Registrando dispositivo...</h3>
+            <p id="registeringDesc">Generando claves RSA de atestación firmadas de fábrica.</p>
+          </div>
+
+          <!-- State: Pending User Authorization -->
+          <div class="screen-state hidden" id="statePendingUser">
+            <h3>Autorización Requerida</h3>
+            <p class="instructions">
+              Para vincular esta tablet con tus fotos de la Smart City, escanea el QR o visita:
+              <br>
+              <a href="#" target="_blank" id="verificationLink">http://localhost:3001/verify.html</a>
+            </p>
+            <div class="code-display" id="userCodeVal">---- ----</div>
+            
+            <div class="qr-container">
+              <img id="qrImage" src="" alt="QR Verification Link">
+            </div>
+
+            <p class="instructions" style="color: var(--color-warning);">
+              Introduce el código de arriba para dar consentimiento de acceso.
+            </p>
+            <div class="timeout-bar" id="timeoutBar"></div>
+          </div>
+
+          <!-- State: Authorized Carousel -->
+          <div class="screen-state hidden" id="stateAuthorized">
+            <img class="carousel-image" id="carouselImg" src="" alt="Smart City Resource">
+            <div class="carousel-overlay">
+              <h4 id="photoTitle">Cargando Imagen...</h4>
+              <p>
+                <span style="color: var(--color-success);">●</span> 
+                Conexión Segura CoAP - Token de Acceso Validado
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- WebSocket & UI Controller Client Side JS -->
+  <script>
+    let ws = null;
+    let carouselInterval = null;
+    let photosList = [];
+    let activePhotoIdx = 0;
+    let activeToken = '';
+
+    const statusServer = document.getElementById('statusServer');
+    const statusProxy = document.getElementById('statusProxy');
+    const statusWS = document.getElementById('statusWS');
+    const logsContainer = document.getElementById('logsContainer');
+
+    const stateOff = document.getElementById('stateOff');
+    const stateRegistering = document.getElementById('stateRegistering');
+    const statePendingUser = document.getElementById('statePendingUser');
+    const stateAuthorized = document.getElementById('stateAuthorized');
+
+    const btnPower = document.getElementById('btnPower');
+    const userCodeVal = document.getElementById('userCodeVal');
+    const verificationLink = document.getElementById('verificationLink');
+    const qrImage = document.getElementById('qrImage');
+    const timeoutBar = document.getElementById('timeoutBar');
+
+    const carouselImg = document.getElementById('carouselImg');
+    const photoTitle = document.getElementById('photoTitle');
+
+    function connectWS() {
+      // Connect to the dashboard WS server (port 3000)
+      ws = new WebSocket(`ws://${window.location.host}`);
+
+      ws.onopen = () => {
+        statusWS.classList.add('active');
+        addLog('SISTEMA', 'system', 'Consola conectada a WebSocket. Monitoreo en tiempo real activo.');
+        
+        checkSystemStatus();
+        setInterval(checkSystemStatus, 3000);
+      };
+
+      ws.onmessage = (message) => {
+        try {
+          const { event, data } = JSON.parse(message.data);
+          
+          if (event === 'log') {
+            addLog(data.source, data.type, data.message, data.details);
+          }
+          
+          if (event === 'device_state') {
+            handleDeviceStateChange(data.state, data.details);
+          }
+        } catch (e) {
+          console.error('Error procesando mensaje de WebSocket:', e);
+        }
+      };
+
+      ws.onclose = () => {
+        statusWS.classList.remove('active');
+        statusProxy.classList.remove('active');
+        addLog('SISTEMA', 'error', 'Conexión WebSocket cerrada. Intentando reconectar...');
+        setTimeout(connectWS, 2000);
+      };
+    }
+
+    async function checkSystemStatus() {
+      try {
+        const res = await fetch('/health');
+        if (res.ok) {
+          statusServer.classList.add('active');
+        } else {
+          statusServer.classList.remove('active');
+        }
+      } catch (err) {
+        statusServer.classList.remove('active');
+      }
+    }
+
+    function addLog(source, type, message, details = null) {
+      const logRow = document.createElement('div');
+      logRow.className = 'log-row';
+      
+      const sourceClass = source.toLowerCase().includes('dispositivo') ? 'log-source-device' : 
+                          source.toLowerCase().includes('server') || source.toLowerCase().includes('auth') || source.toLowerCase().includes('resource') ? 'log-source-server' : 'log-source-system';
+
+      logRow.innerHTML = `
+        <span class="log-source ${sourceClass}">[${source.toUpperCase()}]</span>
+        <span class="log-type log-type-${type.toLowerCase()}">${type}</span>
+        <span class="log-text">${message}</span>
+      `;
+
+      if (details) {
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'log-details';
+        detailsDiv.textContent = `⤷ Info: ${JSON.stringify(details)}`;
+        logRow.appendChild(detailsDiv);
+      }
+
+      logsContainer.appendChild(logRow);
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+
+    function clearLogs() {
+      logsContainer.innerHTML = '';
+    }
+
+    function turnOnDevice() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ event: 'start_registration' }));
+      }
+    }
+
+    function handleDeviceStateChange(state, details) {
+      statusProxy.classList.add('active');
+
+      stateOff.classList.add('hidden');
+      stateRegistering.classList.add('hidden');
+      statePendingUser.classList.add('hidden');
+      stateAuthorized.classList.add('hidden');
+
+      if (state === 'OFFLINE') {
+        stateOff.classList.remove('hidden');
+        btnPower.disabled = false;
+      }
+      else if (state === 'REGISTERING') {
+        stateRegistering.classList.remove('hidden');
+      }
+      else if (state === 'PENDING_USER') {
+        statePendingUser.classList.remove('hidden');
+        userCodeVal.textContent = details.user_code;
+        verificationLink.href = details.verification_uri;
+        verificationLink.textContent = details.verification_uri.split('?')[0];
+        
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(details.verification_uri)}`;
+        qrImage.src = qrUrl;
+
+        timeoutBar.style.width = '100%';
+        setTimeout(() => {
+          timeoutBar.style.width = '0%';
+          timeoutBar.style.transition = `width ${details.expires_in}s linear`;
+        }, 50);
+      }
+      else if (state === 'AUTHORIZED') {
+        stateAuthorized.classList.remove('hidden');
+        photosList = details.photos;
+        activeToken = details.access_token;
+        activePhotoIdx = 0;
+        
+        startCarousel();
+      }
+      else if (state === 'ERROR') {
+        stateOff.classList.remove('hidden');
+        btnPower.disabled = false;
+        alert(`Error en el dispositivo: ${details.error}`);
+      }
+    }
+
+    async function showPhoto(photoObj) {
+      try {
+        photoTitle.textContent = photoObj.name;
+        
+        const response = await fetch(photoObj.url, {
+          headers: {
+            'Authorization': `Bearer ${activeToken}`
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch image');
+
+        const blob = await response.blob();
+        const objectURL = URL.createObjectURL(blob);
+        
+        carouselImg.style.opacity = 0;
+        setTimeout(() => {
+          carouselImg.src = objectURL;
+          carouselImg.style.opacity = 1;
+        }, 300);
+
+      } catch (err) {
+        addLog('SISTEMA', 'error', `Error cargando imagen protegida: ${err.message}`);
+      }
+    }
+
+    function startCarousel() {
+      if (carouselInterval) clearInterval(carouselInterval);
+      if (photosList.length === 0) return;
+
+      showPhoto(photosList[activePhotoIdx]);
+
+      carouselInterval = setInterval(() => {
+        activePhotoIdx = (activePhotoIdx + 1) % photosList.length;
+        showPhoto(photosList[activePhotoIdx]);
+      }, 4000);
+    }
+
+    connectWS();
+  </script>
+</body>
+</html>

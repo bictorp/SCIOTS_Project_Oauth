@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificación de Dispositivo - Smart City</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #0a0d16;
+      --bg-card: rgba(22, 28, 45, 0.7);
+      --border-card: rgba(255, 255, 255, 0.08);
+      --color-primary: #3b82f6;
+      --color-primary-hover: #2563eb;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-main);
+      background-image: radial-gradient(circle at center, rgba(30, 58, 138, 0.15) 0%, transparent 80%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .container {
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      text-align: center;
+      animation: slideUp 0.4s ease;
+    }
+
+    .icon-lock {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      display: inline-block;
+      animation: float 3s infinite ease-in-out;
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 2rem;
+    }
+
+    /* Form Styles */
+    .form-group {
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    input {
+      width: 100%;
+      background: #111625;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 0.1em;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+      background: #151d30;
+    }
+
+    input::placeholder {
+      font-size: 1.1rem;
+      letter-spacing: 0.02em;
+      color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--color-primary);
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--color-primary-hover);
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Response Messages */
+    .message-box {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .message-box.success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+
+    .message-box.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    /* Keyframes */
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="container">
+    <div class="icon-lock">🔑</div>
+    <h1>Registrar Dispositivo</h1>
+    <p>Introduce el código de verificación de 8 caracteres que se muestra en la pantalla del portarretratos digital.</p>
+    
+    <form id="verifyForm" onsubmit="submitVerification(event)">
+      <div class="form-group">
+        <label for="userCode">Código de Verificación</label>
+        <input type="text" id="userCode" maxlength="9" placeholder="ABCD-1234" autocomplete="off" required>
+      </div>
+      <button type="submit" class="btn" id="btnSubmit">Autorizar Acceso</button>
+    </form>
+
+    <div class="message-box" id="messageBox" style="display: none;"></div>
+  </div>
+
+  <script>
+    const userCodeInput = document.getElementById('userCode');
+    const messageBox = document.getElementById('messageBox');
+    const btnSubmit = document.getElementById('btnSubmit');
+
+    // Auto format input to ABCD-1234
+    userCodeInput.addEventListener('input', (e) => {
+      let value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      if (value.length > 4) {
+        value = value.substring(0, 4) + '-' + value.substring(4, 8);
+      }
+      e.target.value = value;
+    });
+
+    // Check query params for code
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      if (code) {
+        userCodeInput.value = code;
+      }
+    });
+
+    async function submitVerification(event) {
+      event.preventDefault();
+      
+      const code = userCodeInput.value.trim();
+      if (code.length < 9) {
+        showMessage('error', 'Por favor introduce un código de 8 caracteres completo (ej: ABCD-1234).');
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Verificando...';
+      messageBox.style.display = 'none';
+
+      try {
+        const res = await fetch('/auth/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ user_code: code })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showMessage('success', `<strong>Autorizado con éxito:</strong> ${data.message}`);
+          userCodeInput.value = '';
+        } else {
+          showMessage('error', `<strong>Error:</strong> ${data.message || data.error}`);
+        }
+
+      } catch (err) {
+        showMessage('error', `<strong>Error de red:</strong> No se pudo establecer conexión con el servidor de autorización.`);
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Autorizar Acceso';
+      }
+    }
+
+    function showMessage(type, htmlContent) {
+      messageBox.className = `message-box ${type}`;
+      messageBox.innerHTML = htmlContent;
+      messageBox.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
