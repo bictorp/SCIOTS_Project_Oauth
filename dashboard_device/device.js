@@ -65,6 +65,12 @@ function connectWebSocket() {
     setTimeout(connectWebSocket, wsReconnectDelay);
     wsReconnectDelay = Math.min(wsReconnectDelay * 2, 15000);
   });
+
+  ws.on('error', (err) => {
+    // Evita que la aplicación falle por un evento de error no manejado (Unhandled Exception)
+    // El evento 'close' se disparará inmediatamente después e intentará reconectar de forma segura.
+    console.log('[Device] Buscando conexión con el Dashboard...');
+  });
 }
 
 function sendUILog(type, message, details = null) {

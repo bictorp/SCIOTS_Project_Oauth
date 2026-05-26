@@ -60,6 +60,18 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
+// Enable CORS so the Dashboard (Port 3000) can query health status
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Serve the static verify.html from public
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -73,6 +85,12 @@ if (!fs.existsSync(pubKeyPath)) {
   process.exit(1);
 }
 const manufacturerPubKey = crypto.createPublicKey(fs.readFileSync(pubKeyPath, 'utf8'));
+
+// In-memory User accounts database
+const DEMO_USERS = {
+  'admin': 'admin',
+  'sciots': 'sciots'
+};
 
 // In-memory OAuth 2.0 State
 const activeAuthorizations = new Map(); // device_code -> auth details
@@ -167,7 +185,8 @@ app.post('/auth/device_authorize', async (req, res) => {
       client_id,
       status: 'pending',
       expires_at: Date.now() + (expires_in * 1000),
-      access_token: null
+      access_token: null,
+      user: null
     };
 
     activeAuthorizations.set(device_code, authData);
@@ -225,13 +244,14 @@ app.post('/auth/token', async (req, res) => {
     // Save the token with its metadata
     issuedTokens.set(access_token, {
       client_id: authData.client_id,
+      user: authData.user,
       expires_at: Date.now() + 3600 * 1000
     });
     
     authData.access_token = access_token;
     authData.status = 'issued';
 
-    await logToDashboard('SUCCESS', `🔑 Token de acceso emitido con éxito para: ${authData.client_id}`);
+    await logToDashboard('SUCCESS', `🔑 Token de acceso emitido con éxito para el usuario: [${authData.user}] en dispositivo: [${authData.client_id}]`);
 
     return res.json({
       access_token,
@@ -247,21 +267,32 @@ app.post('/auth/token', async (req, res) => {
  * 3. User Consent/Verification Endpoint
  */
 app.post('/auth/verify', async (req, res) => {
-  const { user_code } = req.body;
+  const { username, password, user_code } = req.body;
+
+  // ── PASO 1: Validar las credenciales del usuario ──
+  const validPassword = DEMO_USERS[username];
+  if (!validPassword || validPassword !== password) {
+    await logToDashboard('ERROR', `Intentaron autorizar con usuario incorrecto: [${username}]`);
+    return res.status(401).json({ error: 'invalid_credentials', message: 'Nombre de usuario o contraseña incorrectos.' });
+  }
+
+  // ── PASO 2: Validar el código de usuario de OAuth ──
   const device_code = userCodeMap.get(user_code);
   const authData = activeAuthorizations.get(device_code);
 
   if (!authData) {
-    return res.status(400).json({ error: 'invalid_user_code', message: 'El código introducido es incorrecto o ha expirado.' });
+    return res.status(400).json({ error: 'invalid_user_code', message: 'El código de verificación introducido es incorrecto o ha expirado.' });
   }
 
   if (Date.now() > authData.expires_at) {
-    return res.status(400).json({ error: 'expired_code', message: 'El código ha expirado. Por favor, reinicia el registro.' });
+    return res.status(400).json({ error: 'expired_code', message: 'El código ha expirado. Por favor, reinicia el registro en la tablet.' });
   }
 
+  // Vincular el usuario autenticado a la sesión del dispositivo
   authData.status = 'approved';
+  authData.user = username;
   
-  await logToDashboard('SUCCESS', `👤 Usuario aprobó el código: ${user_code}. Acceso concedido.`);
+  await logToDashboard('SUCCESS', `👤 Usuario [${username}] se autenticó y aprobó el código: [${user_code}]. Acceso concedido.`);
 
   // Inform Dashboard to update device state visually
   try {
@@ -274,7 +305,7 @@ app.post('/auth/verify', async (req, res) => {
     // Ignore dashboard notification errors
   }
 
-  res.json({ message: '¡Dispositivo autorizado correctamente! Ya puedes mirar la pantalla de tu portarretratos.' });
+  res.json({ message: `¡Dispositivo autorizado correctamente bajo la cuenta de [${username}]! Ya puedes mirar la pantalla de tu portarretratos.` });
 });
 
 /**
@@ -301,6 +332,7 @@ app.post('/auth/validate_token', (req, res) => {
   return res.json({
     active: true,
     client_id: tokenData.client_id,
+    user: tokenData.user,
     scope: 'read:photos'
   });
 });

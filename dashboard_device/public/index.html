@@ -549,14 +549,14 @@
 
     <!-- Active indicators -->
     <div class="status-panel">
-      <div class="status-indicator" id="statusServer">
-        <span class="status-dot"></span> Dashboard Express (Puerto 3000)
+      <div class="status-indicator" id="statusAuth">
+        <span class="status-dot"></span> Servidor de Autenticación (3001)
       </div>
-      <div class="status-indicator" id="statusProxy">
-        <span class="status-dot"></span> Dispositivo Conectado
+      <div class="status-indicator" id="statusResource">
+        <span class="status-dot"></span> Servidor de Recursos (3002)
       </div>
-      <div class="status-indicator" id="statusWS">
-        <span class="status-dot"></span> Conexión WebSocket
+      <div class="status-indicator" id="statusDevice">
+        <span class="status-dot"></span> Dispositivo IoT (Tablet)
       </div>
     </div>
   </header>
@@ -658,9 +658,9 @@
     let activePhotoIdx = 0;
     let activeToken = '';
 
-    const statusServer = document.getElementById('statusServer');
-    const statusProxy = document.getElementById('statusProxy');
-    const statusWS = document.getElementById('statusWS');
+    const statusAuth = document.getElementById('statusAuth');
+    const statusResource = document.getElementById('statusResource');
+    const statusDevice = document.getElementById('statusDevice');
     const logsContainer = document.getElementById('logsContainer');
 
     const stateOff = document.getElementById('stateOff');
@@ -682,7 +682,6 @@
       ws = new WebSocket(`ws://${window.location.host}`);
 
       ws.onopen = () => {
-        statusWS.classList.add('active');
         addLog('SISTEMA', 'system', 'Consola conectada a WebSocket. Monitoreo en tiempo real activo.');
         
         checkSystemStatus();
@@ -706,23 +705,35 @@
       };
 
       ws.onclose = () => {
-        statusWS.classList.remove('active');
-        statusProxy.classList.remove('active');
+        statusDevice.classList.remove('active');
         addLog('SISTEMA', 'error', 'Conexión WebSocket cerrada. Intentando reconectar...');
         setTimeout(connectWS, 2000);
       };
     }
 
     async function checkSystemStatus() {
+      // Validar salud del Auth Server (3001)
       try {
-        const res = await fetch('/health');
+        const res = await fetch('http://localhost:3001/health');
         if (res.ok) {
-          statusServer.classList.add('active');
+          statusAuth.classList.add('active');
         } else {
-          statusServer.classList.remove('active');
+          statusAuth.classList.remove('active');
         }
       } catch (err) {
-        statusServer.classList.remove('active');
+        statusAuth.classList.remove('active');
+      }
+
+      // Validar salud del Resource Server (3002)
+      try {
+        const res = await fetch('http://localhost:3002/health');
+        if (res.ok) {
+          statusResource.classList.add('active');
+        } else {
+          statusResource.classList.remove('active');
+        }
+      } catch (err) {
+        statusResource.classList.remove('active');
       }
     }
 
@@ -761,7 +772,7 @@
     }
 
     function handleDeviceStateChange(state, details) {
-      statusProxy.classList.add('active');
+      statusDevice.classList.add('active');
 
       stateOff.classList.add('hidden');
       stateRegistering.classList.add('hidden');

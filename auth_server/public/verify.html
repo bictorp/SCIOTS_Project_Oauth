@@ -46,7 +46,7 @@
       border-radius: 16px;
       padding: 2.5rem 2rem;
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
       text-align: center;
       animation: slideUp 0.4s ease;
@@ -61,7 +61,7 @@
 
     h1 {
       font-family: 'Outfit', sans-serif;
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       font-weight: 700;
       margin-bottom: 0.5rem;
       background: linear-gradient(135deg, #ffffff, #cbd5e1);
@@ -73,12 +73,12 @@
       font-size: 0.85rem;
       color: var(--text-muted);
       line-height: 1.5;
-      margin-bottom: 2rem;
+      margin-bottom: 1.75rem;
     }
 
     /* Form Styles */
     .form-group {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       text-align: left;
     }
 
@@ -89,36 +89,44 @@
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
     }
 
-    input {
+    .form-input {
       width: 100%;
       background: #111625;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 8px;
       padding: 0.75rem 1rem;
-      font-size: 1.5rem;
-      font-weight: 700;
+      font-size: 0.95rem;
       color: #ffffff;
-      font-family: 'Outfit', sans-serif;
-      text-transform: uppercase;
-      text-align: center;
-      letter-spacing: 0.1em;
+      font-family: 'Inter', sans-serif;
       outline: none;
       transition: all 0.2s ease;
     }
 
-    input:focus {
+    .form-input:focus {
       border-color: var(--color-primary);
       box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
       background: #151d30;
     }
 
-    input::placeholder {
-      font-size: 1.1rem;
-      letter-spacing: 0.02em;
-      color: rgba(255, 255, 255, 0.15);
+    .code-input {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #f59e0b;
+      font-family: 'Outfit', sans-serif;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 0.08em;
+      border: 1.5px dashed rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.03);
+    }
+    
+    .code-input:focus {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.08);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
     }
 
     .btn {
@@ -134,6 +142,7 @@
       cursor: pointer;
       box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
       transition: all 0.2s ease;
+      margin-top: 0.5rem;
     }
 
     .btn:hover:not(:disabled) {
@@ -188,22 +197,35 @@
 <body>
   
   <div class="container">
-    <div class="icon-lock">🔑</div>
-    <h1>Registrar Dispositivo</h1>
-    <p>Introduce el código de verificación de 8 caracteres que se muestra en la pantalla del portarretratos digital.</p>
+    <div class="icon-lock">🔐</div>
+    <h1>Verificación y Acceso</h1>
+    <p>Inicia sesión con tus credenciales de la Smart City y valida el código de vinculación de tu portarretratos.</p>
     
     <form id="verifyForm" onsubmit="submitVerification(event)">
       <div class="form-group">
-        <label for="userCode">Código de Verificación</label>
-        <input type="text" id="userCode" maxlength="9" placeholder="ABCD-1234" autocomplete="off" required>
+        <label for="username">Usuario / Email</label>
+        <input type="text" id="username" class="form-input" placeholder="admin o user@sciots.com" autocomplete="off" required>
       </div>
-      <button type="submit" class="btn" id="btnSubmit">Autorizar Acceso</button>
+      
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+      </div>
+
+      <div class="form-group" style="margin-top: 1.5rem;">
+        <label for="userCode">Código de Verificación</label>
+        <input type="text" id="userCode" class="form-input code-input" maxlength="9" placeholder="ABCD-1234" autocomplete="off" required>
+      </div>
+
+      <button type="submit" class="btn" id="btnSubmit">Iniciar Sesión y Vincular</button>
     </form>
 
     <div class="message-box" id="messageBox" style="display: none;"></div>
   </div>
 
   <script>
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
     const userCodeInput = document.getElementById('userCode');
     const messageBox = document.getElementById('messageBox');
     const btnSubmit = document.getElementById('btnSubmit');
@@ -230,13 +252,16 @@
       event.preventDefault();
       
       const code = userCodeInput.value.trim();
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
       if (code.length < 9) {
         showMessage('error', 'Por favor introduce un código de 8 caracteres completo (ej: ABCD-1234).');
         return;
       }
 
       btnSubmit.disabled = true;
-      btnSubmit.textContent = 'Verificando...';
+      btnSubmit.textContent = 'Autenticando...';
       messageBox.style.display = 'none';
 
       try {
@@ -245,23 +270,41 @@
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ user_code: code })
+          body: JSON.stringify({
+            username: username,
+            password: password,
+            user_code: code
+          })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          showMessage('success', `<strong>Autorizado con éxito:</strong> ${data.message}`);
-          userCodeInput.value = '';
+          // Reemplazar el formulario por una tarjeta de éxito limpia y profesional
+          document.querySelector('.container').innerHTML = `
+            <div class="icon-lock" style="font-size: 4rem; margin-bottom: 1rem; display: inline-block; animation: float 2s infinite ease-in-out;">✅</div>
+            <h1 style="background: linear-gradient(135deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">¡Vinculación Exitosa!</h1>
+            <p style="margin: 1rem 0 1.5rem 0; font-size: 0.95rem; line-height: 1.6; color: #e2e8f0;">
+              Tu portarretratos digital ha sido enlazado correctamente bajo la cuenta de <strong style="color: #34d399;">${username}</strong>.
+            </p>
+            <p style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5;">
+              Ya puedes cerrar esta ventana y regresar a la pantalla de tu dispositivo para disfrutar de tus imágenes.
+            </p>
+            <div style="margin-top: 2rem;">
+              <span style="display: inline-block; padding: 0.4rem 1.2rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 50px; color: #34d399; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em;">
+                ● CONEXIÓN ACTIVA
+              </span>
+            </div>
+          `;
         } else {
-          showMessage('error', `<strong>Error:</strong> ${data.message || data.error}`);
+          showMessage('error', `<strong>Error de Autorización:</strong> ${data.message || data.error}`);
         }
 
       } catch (err) {
         showMessage('error', `<strong>Error de red:</strong> No se pudo establecer conexión con el servidor de autorización.`);
       } finally {
         btnSubmit.disabled = false;
-        btnSubmit.textContent = 'Autorizar Acceso';
+        btnSubmit.textContent = 'Iniciar Sesión y Vincular';
       }
     }
 

@@ -81,9 +81,10 @@ async function authenticateToken(req, res, next) {
       return res.status(403).json({ error: 'invalid_token', message: 'Invalid token' });
     }
 
-    // Attach client_id and scopes to request
+    // Attach client_id, scopes and user to request
     req.client_id = tokenInfo.client_id;
     req.scope = tokenInfo.scope;
+    req.user = tokenInfo.user;
     
     next();
 
@@ -105,16 +106,25 @@ app.get('/health', (req, res) => {
  * 1. GET/POST /api/photos: Devuelve catálogo de fotos (protegido por token)
  */
 app.all('/api/photos', authenticateToken, async (req, res) => {
-  await logToDashboard('SUCCESS', `Petición autorizada para ${req.client_id}. Devolviendo catálogo de imágenes.`);
+  await logToDashboard('SUCCESS', `Petición autorizada para el usuario [${req.user}] en dispositivo [${req.client_id}]. Devolviendo catálogo de imágenes.`);
 
-  const photoList = [
+  const photoListAdmin = [
     { id: 1, name: 'Smart City Landscape', url: `http://localhost:${PORT}/api/photos/1` },
     { id: 2, name: 'IoT Node Hardware', url: `http://localhost:${PORT}/api/photos/2` },
     { id: 3, name: 'Control Room Grid', url: `http://localhost:${PORT}/api/photos/3` },
     { id: 4, name: 'Digital Grid Networks', url: `http://localhost:${PORT}/api/photos/4` }
   ];
 
-  res.json({ photos: photoList });
+  const photoListSciots = [
+    { id: 5, name: 'Alpine Lake Landscape', url: `http://localhost:${PORT}/api/photos/5` },
+    { id: 6, name: 'Autumn Forest River', url: `http://localhost:${PORT}/api/photos/6` },
+    { id: 7, name: 'Golden Desert Dunes', url: `http://localhost:${PORT}/api/photos/7` },
+    { id: 8, name: 'Ocean Rocky Sunset', url: `http://localhost:${PORT}/api/photos/8` }
+  ];
+
+  const userPhotos = req.user === 'sciots' ? photoListSciots : photoListAdmin;
+
+  res.json({ photos: userPhotos });
 });
 
 /**
@@ -122,6 +132,19 @@ app.all('/api/photos', authenticateToken, async (req, res) => {
  */
 app.all('/api/photos/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
+  const photoId = parseInt(id, 10);
+
+  // Control de acceso estricto: admin (1-4), sciots (5-8)
+  if (req.user === 'sciots' && (photoId < 5 || photoId > 8)) {
+    await logToDashboard('ERROR', `Acceso denegado: El usuario sciots no puede acceder a la foto ${id}`);
+    return res.status(403).json({ error: 'access_denied', message: 'No estás autorizado para ver este recurso.' });
+  }
+
+  if (req.user === 'admin' && (photoId < 1 || photoId > 4)) {
+    await logToDashboard('ERROR', `Acceso denegado: El usuario admin no puede acceder a la foto ${id}`);
+    return res.status(403).json({ error: 'access_denied', message: 'No estás autorizado para ver este recurso.' });
+  }
+
   const imagePath = pathModule.join(imagesDir, `foto${id}.png`);
 
   if (!fs.existsSync(imagePath)) {
@@ -129,7 +152,7 @@ app.all('/api/photos/:id', authenticateToken, async (req, res) => {
     return res.status(404).json({ error: 'photo_not_found' });
   }
 
-  await logToDashboard('SUCCESS', `Enviando imagen física foto${id}.png para ${req.client_id}`);
+  await logToDashboard('SUCCESS', `Enviando imagen física foto${id}.png para el usuario [${req.user}] en dispositivo [${req.client_id}]`);
   res.sendFile(imagePath);
 });
 
